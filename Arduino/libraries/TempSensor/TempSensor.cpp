@@ -4,21 +4,16 @@
 #include <OneWire.h> //biblioteca protocolo One Wire
 #include <DallasTemperature.h>
 
-TempSensor::TempSensor(uint8_t pin) {
-	_pin = pin;
+TempSensor::TempSensor(uint8_t _pin) {
+	pin = _pin;
+
 	// setup
 	Serial.begin(9600);
-	OneWire  ds(10);  //declaração de objeto (sensor ds no pino digital 10)
-	OneWire oneWire(_pin);
-	DallasTemperature sensors(&oneWire);
-	DeviceAddress sensor1 = NULL;
-	sensors.begin(); //initialize sensors
-	sensors.setResolution(sensor1, 10); //set resolution to 10 bits
 }
 
 // Write funtions here
 
-void TempSensor::Address(void) {
+void TempSensor::printAddress(OneWire ds) {
   byte i;
   byte present = 0;
   byte data[12];
@@ -28,7 +23,7 @@ void TempSensor::Address(void) {
 
   while(ds.search(addr)){
     Serial.print("\n\rEncontrado sensor \'DS18B20\' com endereco:\n\r");
-    for( i = 0; i < 8; i++) {
+    for(i = 0; i < 8; i++) {
       Serial.print("0x");
 
       if (addr[i] < 16) {
@@ -54,13 +49,14 @@ void TempSensor::Address(void) {
   return;
 }
 
-void TempSensor::setDeviceAddress(DeviceAddress deviceAddress) {
-	sensor1 = deviceAddress;
+void TempSensor::initComponents(DallasTemperature sensors, DeviceAddress sensor1) {
+	sensors.begin(); //initialize sensors
+	sensors.setResolution(sensor1, 10); //set resolution to 10 bits
 }
 
-float TempSensor::getTemperature() {
+float TempSensor::getTemperature(DallasTemperature sensors, DeviceAddress sensor1) {
 
-	if(sensor1 == NULL) return -2;
+	if(sensor1 == NULL) return 0;
 
 	float temperature = sensors.getTempC(sensor1);
 	if(temperature >= -127.00) return -1;
@@ -68,6 +64,6 @@ float TempSensor::getTemperature() {
 }
 
 void TempSensor::printTemperature(float temp) {
-	Serial.println(temp);
+	Serial.print(temp);
 	Serial.println(" graus Cº");
 }

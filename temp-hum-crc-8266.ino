@@ -26,26 +26,15 @@
 #define D9  3  // RX0 (Serial console)
 #define D10 1  // TX0 (Serial console)
 
-//28a06c03050000cf HA_pt3052
-//283816f7040000db HA_juniperEx
-//28382d040500007d CA_ptt
-//288aa3f6040000a0 CA_nb10
-//287acdf604000061 CA_nb08
-//284b200405000050 HA_Coloc
-//28973304050000db CA_Coloc
-//288f9a0305000067 CA_Brocade
-
-// MAC - 68:C6:3A:8A:64:D8
-//const char* ssid = "DCC-devices"; //replace this with your WiFi network name
-const char* ssid = "*********"; //replace this with your WiFi network name
-const char* password = "********"; //replace this with your WiFi network password
+const char* ssid = "********"; //replace this with your WiFi network name
+const char* password = "*******"; //replace this with your WiFi network password
 const char* host = "esp8266-webupdate";
 
 // MQTT
-const char* mqttServer   = "192.168.1.7";
+const char* mqttServer   = "IP ADDRESS";
 const int   mqttPort     = 1883;
-const char* mqttUser     = "samuel";
-const char* mqttPassword = "samuel";
+const char* mqttUser     = "*****";
+const char* mqttPassword = "******";
 
 // ONE WIRE
 // Data wire is plugged into pin D3
@@ -110,16 +99,6 @@ void callback(char* topic, byte* payload, unsigned int length) {
     Serial.println();
     Serial.println("-----------------------");
 
-
-	//Serial.println("FIM Message");
-	//StaticJsonBuffer<200> jsonBuffer;
-	//JsonObject& root = jsonBuffer.parseObject(json);
-	//if(root.success()) Serial.println("Success"); else Serial.println("Failed");
-	//if(root.containsKey("red"))  { color_r = root["red"]; Serial.println("tem red"); }
-	//if(root.containsKey("blue")) { color_b = root["blue"]; Serial.println("tem blue"); }
-	//if(root.containsKey("green")) { color_g = root["green"]; Serial.println("tem green"); }
-
-
 }
 
 void setupWifi() {
@@ -127,6 +106,7 @@ void setupWifi() {
     WiFi.mode(WIFI_STA);
     WiFi.hostname("NodeMCU-CRC");
     WiFi.begin(ssid, password);
+
     while (WiFi.waitForConnectResult() != WL_CONNECTED) {
         Serial.println("WIFI connection Failed! Rebooting...");
         //digitalWrite(D4, LOW); delay(500); digitalWrite(D4, HIGH); delay(500); Serial.print(".");
@@ -158,6 +138,7 @@ void setup()
 {
     pinMode(D4, OUTPUT);
 
+    ///#Aqui
     dhtPins[0] = D2;
     
     Serial.begin(9600);
@@ -197,10 +178,6 @@ void loop()
 	long t = millis();
 	TempLoop(t);
 
-	//char data[200];
-	//String payload = "{ \"idx\": 2, \"nvalue\": 0, \"svalue\": \""+String(d)+"\" }";
-	//payload.toCharArray(data, (payload.length() + 1));
-	//mqttClient.publish("stats/xyz",data);
 }
 
 //------------------------------------------
@@ -219,6 +196,7 @@ void SetupDS18B20(){
 	numberOfDevices = DS18B20.getDeviceCount();
 	Serial.print( "Device count: " );
 	Serial.println( numberOfDevices );
+  Serial.println("");
 
 	lastTemp = millis();
 	DS18B20.requestTemperatures();
@@ -246,17 +224,33 @@ void SetupDS18B20(){
 		float tempC = DS18B20.getTempC( devAddr[i] );
 		Serial.print("Temp C: ");
 		Serial.println(tempC);
+    Serial.println();
+    Serial.println("-------------------");
+    Serial.println();
 	}
+
+  for(int i = 0; i < AMOUNT_DHT11; i++) {
+    dht11Sensors[i].read11(dhtPins[i]);
+  
+    dht11Temp[i] = dht11Sensors[i].temperature;
+    dht11Hum[i]  = dht11Sensors[i].humidity;
+
+    Serial.print("Temperatura: ");
+    Serial.print(dht11Temp[i]);
+    Serial.print(" Humidade: ");
+    Serial.println(dht11Hum[i]);
+  }
 }
 
 //Loop measuring the temperature
 void TempLoop(long now){
 	int NoD = DS18B20.getDeviceCount();
-  Serial.println(NoD);
+//  Serial.println(NoD);
 	if(NoD != numberOfDevices) {
 		Serial.println("Number of devices changed. Recalculating...");
 		SetupDS18B20();
 	}
+  
 	if( now - lastTemp > durationTemp ){ //Take a measurement at a fixed time (durationTemp = 5000ms, 5s)
 		for(int i=0; i<numberOfDevices; i++){
 			float tempC = DS18B20.getTempC( devAddr[i] ); //Measuring temperature in Celsius
@@ -275,13 +269,14 @@ void TempLoop(long now){
 
     }
 
+    Serial.println("Sending . . .");
 		publishSensors();
 	}
 }
 
 void publishSensors() {
-	char temperatureString[6];
-	char message[200], topicArray[200], humidityString[200];
+	char temperatureString[6], humidityString[6];
+	char message[200], topicArray[200], topic[200];
 	for(int i=0;i<numberOfDevices;i++){
 
 		StaticJsonBuffer<200> jsonBuffer;
@@ -291,7 +286,12 @@ void publishSensors() {
 		root["addr"] = GetAddressToString( devAddr[i] );
 		root.printTo(message,sizeof(message));
 
-		mqttClient.publish("stats/sensor", message);
+    Serial.print("Message sent: ");
+    Serial.println(message);
+
+    sprintf(topic,"%s%i", "stats/sensor", i+1);
+
+		mqttClient.publish(topic, message);
 	}
 
     //#Aqui
@@ -306,7 +306,10 @@ void publishSensors() {
       root["temperature"] = temperatureString;
       root["humidity"] = humidityString;
       root.printTo(message,sizeof(message));
-      mqttClient.publish("stats/sensor", message);
+
+      sprintf(topic,"%s%i", "stats/sensorHumidity", i+1);
+
+      mqttClient.publish(topic, message);
     }
 }
 
